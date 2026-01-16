@@ -19,7 +19,7 @@ public class EventService {
 
     private final EventRepository eventRepository;
 
-    private static final long MAX_DURATION_MS = 6 * 60 * 60 * 1000;  // 6 hours millis
+    private static final long MAX_DURATION_MS = 6 * 60 * 60 * 1000;  
 
     public BatchResponse processBatch(List<EventRequest> requests) {
 
@@ -31,7 +31,7 @@ public class EventService {
 
         for (EventRequest req : requests) {
 
-            // ===== VALIDATION =====
+            
             if (!isValid(req)) {
                 rejected++;
                 rejectionList.add(BatchResponse.Rejection.builder()
@@ -44,32 +44,32 @@ public class EventService {
             Instant eventTime = Instant.parse(req.getEventTime());
             Instant receivedTime = parseOrNow(req.getReceivedTime());
 
-            // ===== DEDUP/UPDATE CHECK =====
+            
             Event existing = eventRepository.findById(req.getEventId()).orElse(null);
 
             if (existing != null) {
 
-                // identical payload → dedupe
+                
                 if (isSame(existing, req)) {
                     deduped++;
                     continue;
                 }
 
-                // newer receivedTime wins
+                
                 if (receivedTime.isAfter(existing.getReceivedTime())) {
-                    // update existing
+                    
                     updated++;
                     updateEventFromRequest(existing, req, receivedTime);
                     eventRepository.save(existing);
                 } else {
-                    // ignore older
+                    
                     deduped++;
                 }
 
                 continue;
             }
 
-            // ===== NEW EVENT → SAVE =====
+            
             Event newEvent = mapToEntity(req, eventTime, receivedTime);
             eventRepository.save(newEvent);
             accepted++;
@@ -126,7 +126,7 @@ public class EventService {
 
         var events = eventRepository.findByFactoryIdAndEventTimeBetween(factoryId, start, end);
 
-        // Group by lineId
+        
         var grouped = events.stream()
             .collect(java.util.stream.Collectors.groupingBy(Event::getLineId));
 
@@ -152,7 +152,7 @@ public class EventService {
                 .build());
         }
 
-        // Sort highest defects first + limit
+        
         return result.stream()
             .sorted((a, b) -> Long.compare(b.getTotalDefects(), a.getTotalDefects()))
             .limit(limit)
@@ -161,17 +161,17 @@ public class EventService {
 
 
 
-    // ======== VALIDATION RULES ========
+    
     private boolean isValid(EventRequest req) {
         try {
             Instant eventTime = Instant.parse(req.getEventTime());
 
-            // reject future eventTime > 15 minutes
+            
             if (eventTime.isAfter(Instant.now().plus(Duration.ofMinutes(15)))) {
                 return false;
             }
 
-            // reject invalid duration
+            
             if (req.getDurationMs() < 0 || req.getDurationMs() > MAX_DURATION_MS) {
                 return false;
             }
@@ -183,7 +183,7 @@ public class EventService {
         }
     }
 
-    // ======== HELPERS ========
+    
 
     private Instant parseOrNow(String time) {
         try { return Instant.parse(time); }
